@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BreakTracker PWA</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#ffffff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="application-name" content="BreakTracker">
+
+    <!-- IOS -->
+    <link rel="apple-touch-icon" href="icons/icon-192x192.png">    
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* Smooth interactions for mobile */
+        * {
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        .slide-down {
+            animation: slideDown 0.2s ease-out forwards;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+   <link rel="manifest" href="manifest.json">
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen pb-safe">
+
+    <!-- Header -->
+    <header class="sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 py-4 safe-top">
+        <div class="max-w-md mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="bg-blue-600 p-2 rounded-lg text-white">
+                    <i data-lucide="clock" class="w-5 h-5"></i>
+                </div>
+                <h1 class="font-bold text-lg">BreakTracker</h1>
+            </div>
+            <button id="toggle-drawer-btn" class="p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-colors transition-transform duration-300">
+                <i data-lucide="chevron-down" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-md mx-auto p-4 space-y-6">
+
+        <!-- Data Management Drawer (Hidden by default) -->
+        <div id="drawer" class="hidden slide-down">
+            <div class="bg-slate-100 rounded-2xl p-4 border border-slate-200">
+                <h3 class="text-xs font-bold uppercase text-slate-500 mb-3 tracking-wider">Data Management</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <!-- Export -->
+                    <button onclick="app.exportData()" class="flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold bg-white border border-slate-200 text-slate-600 text-sm active:scale-95 transition-transform">
+                        <i data-lucide="download" class="w-4 h-4"></i> Save JSON
+                    </button>
+                    
+                    <!-- Import -->
+                    <label class="flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold bg-white border border-slate-200 text-slate-600 text-sm active:scale-95 transition-transform cursor-pointer">
+                        <i data-lucide="upload" class="w-4 h-4"></i> Load JSON
+                        <input type="file" id="file-input" accept=".json" class="hidden" onchange="app.importData(this)">
+                    </label>
+
+                    <!-- Transmit -->
+                    <button onclick="app.transmitData()" class="flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold bg-white border border-slate-200 text-slate-600 text-sm active:scale-95 transition-transform">
+                        <i data-lucide="send" class="w-4 h-4"></i> Copy Data
+                    </button>
+
+                    <!-- Clear -->
+                    <button onclick="app.clearData()" class="flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold bg-red-50 text-red-600 text-sm active:scale-95 transition-transform">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i> Clear
+                    </button>
+                </div>
+                <p class="text-xs text-slate-400 mt-3 text-center">
+                    Use "Save JSON" to store your progress locally.
+                </p>
+            </div>
+        </div>
+
+        <!-- Timer Card -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative p-8 text-center">
+            <!-- Status Bar Indicator -->
+            <div id="status-bar" class="absolute top-0 left-0 w-full h-1 bg-slate-300 transition-colors duration-300"></div>
+
+            <!-- Status Badge -->
+            <div class="mb-2">
+                <span id="status-badge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-slate-100 text-slate-500 transition-colors duration-300">
+                    Ready
+                </span>
+            </div>
+
+            <!-- Timer Display -->
+            <div id="timer-display" class="text-6xl font-mono font-medium tracking-tighter my-6 text-slate-800">
+                00:00:00
+            </div>
+
+            <!-- Controls -->
+            <div id="controls" class="space-y-3">
+                <!-- Buttons injected via JS -->
+            </div>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="grid grid-cols-2 gap-4">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-col items-center justify-center">
+                <span class="text-slate-500 text-xs font-bold uppercase mb-1">Total Work</span>
+                <span id="total-work" class="text-xl font-mono font-semibold text-blue-600">00:00:00</span>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-col items-center justify-center">
+                <span class="text-slate-500 text-xs font-bold uppercase mb-1">Total Break</span>
+                <span id="total-break" class="text-xl font-mono font-semibold text-green-600">00:00:00</span>
+            </div>
+        </div>
+
+        <!-- Logs List -->
+        <div class="space-y-2">
+            <h2 class="text-sm font-bold text-slate-500 uppercase tracking-wide ml-1">Today's Activity</h2>
+            <div id="logs-list" class="space-y-2">
+                <!-- Logs injected via JS -->
+                <div class="text-center py-10 opacity-50 border-2 border-dashed border-slate-200 rounded-xl">
+                    <p>No activity recorded yet</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="h-8"></div>
+    </main>
+
+    <script>
+        // --- Logic ---
+        
+        const app = {
+            state: {
+                status: 'idle', // idle, working, break
+                currentSessionStart: null,
+                logs: [],
+                showExport: false
+            },
+            timerInterval: null,
+
+            init() {
+                // Try to load from localStorage on boot to persist session across reloads
+                const savedState = localStorage.getItem('breakTrackerState');
+                if (savedState) {
+                    const parsed = JSON.parse(savedState);
+                    this.state = parsed;
+                    // Restore active timer if needed
+                    if (this.state.status !== 'idle') {
+                        this.startTimerTick();
+                    }
+                }
+                this.render();
+                lucide.createIcons();
+            },
+
+            saveState() {
+                localStorage.setItem('breakTrackerState', JSON.stringify(this.state));
+                this.render();
+            },
+
+            // Timer Logic
+            startTimerTick() {
+                if (this.timerInterval) clearInterval(this.timerInterval);
+                this.timerInterval = setInterval(() => {
+                    this.updateTimerDisplay();
+                }, 1000);
+            },
+
+            stopTimerTick() {
+                if (this.timerInterval) clearInterval(this.timerInterval);
+                this.timerInterval = null;
+                this.updateTimerDisplay(); // One last update
+            },
+
+            updateTimerDisplay() {
+                const display = document.getElementById('timer-display');
+                if (!display) return;
+                
+                if (this.state.status === 'idle') {
+                    display.textContent = '00:00:00';
+                    return;
+                }
+
+                const start = new Date(this.state.currentSessionStart).getTime();
+                const now = Date.now();
+                const diff = now - start;
+                display.textContent = this.formatDuration(diff);
+            },
+
+            // Actions
+            startWork() {
+                this.state.status = 'working';
+                this.state.currentSessionStart = new Date().toISOString();
+                this.startTimerTick();
+                this.saveState();
+            },
+
+            startBreak() {
+                if (this.state.status === 'working') {
+                    this.addLog('work', this.state.currentSessionStart, new Date().toISOString());
+                }
+                this.state.status = 'break';
+                this.state.currentSessionStart = new Date().toISOString();
+                this.startTimerTick();
+                this.saveState();
+            },
+
+            endBreak() {
+                if (this.state.status === 'break') {
+                    this.addLog('break', this.state.currentSessionStart, new Date().toISOString());
+                }
+                this.startWork();
+            },
+
+            clockOut() {
+                if (this.state.status === 'working') {
+                    this.addLog('work', this.state.currentSessionStart, new Date().toISOString());
+                } else if (this.state.status === 'break') {
+                    this.addLog('break', this.state.currentSessionStart, new Date().toISOString());
+                }
+                this.state.status = 'idle';
+                this.state.currentSessionStart = null;
+                this.stopTimerTick();
+                this.saveState();
+            },
+
+            addLog(type, start, end) {
+                const duration = new Date(end).getTime() - new Date(start).getTime();
+                const newLog = {
+                    id: Date.now(),
+                    date: new Date().toLocaleDateString(),
+                    type,
+                    start,
+                    end,
+                    duration
+                };
+                this.state.logs.unshift(newLog); // Add to top
+            },
+
+            toggleExport() {
+                this.state.showExport = !this.state.showExport;
+                const drawer = document.getElementById('drawer');
+                const btn = document.getElementById('toggle-drawer-btn');
+                
+                if (this.state.showExport) {
+                    drawer.classList.remove('hidden');
+                    btn.classList.add('rotate-180');
+                } else {
+                    drawer.classList.add('hidden');
+                    btn.classList.remove('rotate-180');
+                }
+            },
+
+            // Data Handling
+            exportData() {
+                const dataStr = JSON.stringify(this.state.logs, null, 2);
+                const blob = new Blob([dataStr], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = `break-tracker-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            },
+
+            importData(inputElement) {
+                const file = inputElement.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const importedLogs = JSON.parse(e.target.result);
+                        if(Array.isArray(importedLogs)) {
+                            // Merge logs
+                            this.state.logs = [...importedLogs, ...this.state.logs];
+                            // Remove duplicates based on ID if necessary, but simple merge for now
+                            this.saveState();
+                            alert(`Loaded ${importedLogs.length} entries.`);
+                        } else {
+                            alert("Invalid file format.");
+                        }
+                    } catch (error) {
+                        console.error(error);
+                        alert("Error parsing file.");
+                    }
+                };
+                reader.readAsText(file);
+                // Reset input
+                inputElement.value = '';
+            },
+
+            transmitData() {
+                const payload = JSON.stringify(this.state.logs, null, 2);
+                
+                // Fallback for older devices/iframes
+                if (!navigator.clipboard) {
+                    const textArea = document.createElement("textarea");
+                    textArea.value = payload;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    alert("Data copied to clipboard!");
+                    return;
+                }
+
+                navigator.clipboard.writeText(payload).then(() => {
+                    alert("Data copied to clipboard! Ready to paste.");
+                }).catch(err => {
+                    alert("Failed to copy: " + err);
+                });
+            },
+
+            clearData() {
+                if(confirm("Clear all history? This cannot be undone.")) {
+                    this.state.logs = [];
+                    this.saveState();
+                }
+            },
+
+            // Helpers
+            formatTime(isoString) {
+                if (!isoString) return '--:--';
+                return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            },
+
+            formatDuration(ms) {
+                if (ms < 0) ms = 0;
+                const seconds = Math.floor((ms / 1000) % 60);
+                const minutes = Math.floor((ms / (1000 * 60)) % 60);
+                const hours = Math.floor((ms / (1000 * 60 * 60)) % 24);
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            },
+
+            // UI Render
+            render() {
+                // Update Badge & Bar Color
+                const statusBar = document.getElementById('status-bar');
+                const statusBadge = document.getElementById('status-badge');
+                const controls = document.getElementById('controls');
+
+                let badgeClass = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide transition-colors duration-300 ";
+                
+                if (this.state.status === 'working') {
+                    statusBar.className = "absolute top-0 left-0 w-full h-1 transition-colors duration-300 bg-blue-500";
+                    statusBadge.className = badgeClass + "bg-blue-100 text-blue-700";
+                    statusBadge.textContent = "Focus Mode";
+                    
+                    controls.innerHTML = `
+                        <button onclick="app.startBreak()" class="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-semibold bg-green-600 text-white shadow-lg shadow-green-200 active:scale-95 transition-all">
+                            <i data-lucide="coffee" class="w-5 h-5"></i> Take a Break
+                        </button>
+                        <button onclick="app.clockOut()" class="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-semibold bg-slate-100 text-slate-700 active:scale-95 transition-all">
+                            <i data-lucide="pause" class="w-5 h-5"></i> Clock Out
+                        </button>
+                    `;
+                } else if (this.state.status === 'break') {
+                    statusBar.className = "absolute top-0 left-0 w-full h-1 transition-colors duration-300 bg-green-500";
+                    statusBadge.className = badgeClass + "bg-green-100 text-green-700";
+                    statusBadge.textContent = "On Break";
+
+                    controls.innerHTML = `
+                        <button onclick="app.endBreak()" class="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-semibold bg-blue-600 text-white shadow-lg shadow-blue-200 active:scale-95 transition-all">
+                            <i data-lucide="play" class="w-5 h-5"></i> Resume Work
+                        </button>
+                        <button onclick="app.clockOut()" class="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-semibold bg-slate-100 text-slate-700 active:scale-95 transition-all">
+                            <i data-lucide="pause" class="w-5 h-5"></i> End Day
+                        </button>
+                    `;
+                } else {
+                    statusBar.className = "absolute top-0 left-0 w-full h-1 transition-colors duration-300 bg-slate-300";
+                    statusBadge.className = badgeClass + "bg-slate-100 text-slate-500";
+                    statusBadge.textContent = "Ready";
+
+                    controls.innerHTML = `
+                        <button onclick="app.startWork()" class="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl font-semibold bg-blue-600 text-white shadow-lg shadow-blue-200 active:scale-95 transition-all">
+                            <i data-lucide="play" class="w-5 h-5"></i> Clock In
+                        </button>
+                    `;
+                    // Ensure timer is zeroed visually if idle
+                    document.getElementById('timer-display').textContent = '00:00:00';
+                }
+
+                // Render Logs
+                const logsContainer = document.getElementById('logs-list');
+                const totalWorkEl = document.getElementById('total-work');
+                const totalBreakEl = document.getElementById('total-break');
+
+                // Calculate Totals
+                const totalWork = this.state.logs.filter(l => l.type === 'work').reduce((a, b) => a + b.duration, 0);
+                const totalBreak = this.state.logs.filter(l => l.type === 'break').reduce((a, b) => a + b.duration, 0);
+                
+                totalWorkEl.textContent = this.formatDuration(totalWork);
+                totalBreakEl.textContent = this.formatDuration(totalBreak);
+
+                if (this.state.logs.length === 0) {
+                    logsContainer.innerHTML = `
+                        <div class="text-center py-10 opacity-50 border-2 border-dashed border-slate-200 rounded-xl">
+                            <i data-lucide="calendar" class="w-8 h-8 mx-auto mb-2"></i>
+                            <p>No activity recorded yet</p>
+                        </div>
+                    `;
+                } else {
+                    logsContainer.innerHTML = this.state.logs.map(log => `
+                        <div class="bg-white rounded-2xl p-3 shadow-sm border border-slate-200 flex justify-between items-center">
+                            <div class="flex items-center gap-3">
+                                <div class="p-2 rounded-lg ${log.type === 'work' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'}">
+                                    <i data-lucide="${log.type === 'work' ? 'play' : 'coffee'}" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <div class="font-semibold text-sm capitalize text-slate-800">${log.type} Session</div>
+                                    <div class="text-xs text-slate-500 font-mono">
+                                        ${this.formatTime(log.start)} - ${this.formatTime(log.end)}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="font-mono text-sm font-medium text-slate-700">
+                                ${this.formatDuration(log.duration)}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                // Re-init icons for newly injected HTML
+                lucide.createIcons();
+            }
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            app.init();
+            
+            // Header toggle listener
+            document.getElementById('toggle-drawer-btn').addEventListener('click', () => {
+                app.toggleExport();
+            });
+        });
+
+    </script>
+    <script>
+    	if ('serviceWorker' in navigator) {
+        	window.addEventListener('load', () => {
+            		navigator.serviceWorker.register('./service-worker.js')
+                	.then(reg => console.log('Service Worker registered!', reg))
+                	.catch(err => console.log('Service Worker failed:', err));
+        	});
+    	}
+   </script>
+</body>
+</html>
+
