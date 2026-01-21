@@ -19,8 +19,8 @@ A simple, mobile-first Progressive Web App (PWA) for tracking work sessions and 
 ├── .gitignore         \# Git configuration  
 ├── README.md          \# This file  
 └── icons/             \# Icon assets (Required)  
-    ├── icon-192x192.png  
-    └── icon-512x512.png
+    ├── icon-192x192.png  (Required)
+    └── icon-512x512.png  (Required)
 
 ## **How to Deploy on GitHub Pages**
 
